@@ -1,10 +1,10 @@
 import torch
+import argparse
 import os
 from torchvision.transforms import transforms
 from cifar10_4x import CIFAR10_4x
-from model import Net
+from model import *
 base_dir = os.path.dirname(__file__)
-
 
 transform = transforms.Compose(
     [transforms.ToTensor(),
@@ -30,9 +30,13 @@ def evaluation(net, dataLoader, device):
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--model-dir", type=str, default=None)
+    args = parser.parse_args()
+
     bsz = 128
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    net = torch.load(os.path.join(base_dir, "models/cifar10_4x_best.pth"))
+    net = torch.load(os.path.join(base_dir, "models/cifar10_4x_best.pth"), map_location=device)
     print("number of trained parameters: %d" % (sum([param.nelement() for param in net.parameters() if param.requires_grad])))
     print("number of total parameters: %d" % (sum([param.nelement() for param in net.parameters()])))
     try:

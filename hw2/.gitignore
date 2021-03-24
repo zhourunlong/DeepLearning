@@ -1,3 +1,4 @@
 __pycache__
-models/
+Models*
 data/
+best_models.txt
