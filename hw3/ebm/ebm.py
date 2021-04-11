@@ -118,27 +118,22 @@ class Trainer(object):
         :return: recovered images with the same size as ``corrupted''.
         '''
 
-        bsz = corrupted.shape[0]
-
-        x = []
-        for j in range(bsz):
-            x.append(corrupted[j].clone())
-            x[j].requires_grad_(True)
+        x = corrupted.clone()
+        x.requires_grad_(True)
         for p in self.model.parameters():
             p.requires_grad = False
 
         for i in range(self.langevin_k):
-            for j in range(bsz):
-                out = self.model(x[j])
-                out.backward()
-                x[j].data.add_(x[j].grad.data * mask[j], alpha = -self.langevin_lr)
-                x[j].grad.zero_()
-                x[j].data.clamp_(0, 1)
+            out = self.model(x)
+            out.sum().backward()
+            x.data.add_(x.grad.data * mask, alpha = -self.langevin_lr)
+            x.grad.zero_()
+            x.data.clamp_(0, 1)
 
         for p in self.model.parameters():
             p.requires_grad = True
 
-        return torch.stack(x).detach()
+        return x.detach()
 
     def save(self, save_path):
         save_dict = {'model': self.model.state_dict(),
