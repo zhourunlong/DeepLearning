@@ -3,3 +3,11 @@ data/
 .DS_Store
 Models*
 *.pth
+
+# Latex
+.aux
+.bbl
+.blg
+.log
+.synctex.gz
+

@@ -2,3 +2,10 @@ __pycache__
 Models*
 data/
 best_models.txt
+
+# Latex
+.aux
+.bbl
+.blg
+.log
+.synctex.gz
