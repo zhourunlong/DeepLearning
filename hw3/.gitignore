@@ -2,4 +2,4 @@ data/
 .idea/
 .DS_Store
 Models*
-.pth
+*.pth
