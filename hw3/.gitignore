@@ -3,6 +3,7 @@ data/
 .DS_Store
 Models*
 *.pth
+*.pt
 
 # Latex
 .aux
