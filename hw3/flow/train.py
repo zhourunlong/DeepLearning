@@ -1,7 +1,6 @@
-import argparse
+import argparse, time, logging, os, sys
 import copy
 import math
-import sys
 
 import numpy as np
 import torch
@@ -42,27 +41,46 @@ parser.add_argument(
     '--num-blocks',
     type=int,
     default=8,
-    help='number of invertible blocks (default: 5)')
+    help='number of invertible blocks (default: 8)')
 parser.add_argument(
-    '--seed', type=int, default=1, help='random seed (default: 1)')
+    '--num-hidden',
+    type=int,
+    default=100)
+parser.add_argument(
+    '--seed', type=int, default=2018011309, help='random seed (default: 1)')
 
 parser.add_argument(
-    "--model-dir", 
-    default="models", 
+    "--logdir", 
+    default=None, 
     type=str)
+
 parser.add_argument(
-    "--img-save-dir", 
-    default="images", 
-    type=str)
+    "--gpuid",
+    default=0,
+    type=int)
 
 args = parser.parse_args()
 args.cuda = not args.no_cuda and torch.cuda.is_available()
-device = torch.device("cuda:0" if args.cuda else "cpu")
+device = torch.device("cuda:"+str(args.gpuid) if args.cuda else "cpu")
 CUDA = True if args.cuda else False
 
 torch.manual_seed(args.seed)
 if args.cuda:
     torch.cuda.manual_seed(args.seed)
+
+if args.logdir is None:
+    args.logdir = "Models-{}".format(time.strftime("%Y%m%d-%H%M%S"))
+os.makedirs(args.logdir, exist_ok=True)
+os.makedirs(os.path.join(args.logdir, "models"), exist_ok=True)
+os.makedirs(os.path.join(args.logdir, "images"), exist_ok=True)
+print("Experiment dir : {}".format(args.logdir))
+
+log_format = '%(asctime)s %(message)s'
+logging.basicConfig(stream=sys.stdout, level=logging.INFO,
+                    format=log_format, datefmt='%m/%d %I:%M:%S %p')
+fh = logging.FileHandler(os.path.join(args.logdir, 'log.txt'))
+fh.setFormatter(logging.Formatter(log_format))
+logging.getLogger().addHandler(fh)
 
 # dataset = datasets.MNIST()
 def rescale(x, lo, hi):
@@ -105,7 +123,7 @@ train_loader = load_mnist(train=True, batch_size=args.batch_size)
 valid_loader = load_mnist(train=False, batch_size=args.batch_size)
 
 num_inputs = 28 * 28
-num_hidden = 1024
+num_hidden = args.num_hidden
 act = 'relu'
 
 modules = []
@@ -147,7 +165,9 @@ def train(epoch):
     train_loss = 0
 
     pbar = tqdm(total=len(train_loader.dataset))
+    idx = 0
     for batch_idx, (data, _) in enumerate(train_loader):
+        idx = batch_idx
 
         data = data.to(device)
         optimizer.zero_grad()
@@ -162,7 +182,10 @@ def train(epoch):
         pbar.set_postfix(lr=args.lr)
         
         global_step += 1
-        
+    
+    logging.info('Train, Log likelihood in nats: {:.6f}'.format(
+            -train_loss / (idx + 1)))
+
     pbar.close()
 
 
@@ -184,7 +207,11 @@ def validate(epoch, model, loader, prefix='Validation'):
             -val_loss / pbar.n))
 
     pbar.close()
-    return val_loss / len(loader.dataset)
+    ret = val_loss / len(loader.dataset)
+
+    logging.info('Val, Log likelihood in nats: {:.6f}'.format(-ret))
+
+    return ret
 
 
 best_validation_loss = float('inf')
@@ -192,7 +219,7 @@ best_validation_epoch = 0
 best_model = model
 
 for epoch in range(args.epochs):
-    print('\nEpoch: {}'.format(epoch))
+    logging.info('\nEpoch: {}'.format(epoch))
 
     if epoch > 0 and epoch % 100 == 0:
         args.lr *= 0.1
@@ -200,20 +227,24 @@ for epoch in range(args.epochs):
             param_group['lr'] = args.lr
 
     train(epoch)
-    os.makedirs(args.model_dir, exist_ok=True)
     validation_loss = validate(epoch, model, valid_loader)
     if epoch % 10 == 0:
-
-        torch.save(model, args.model_dir + "/checkpoint{}.pt".format(epoch + 1))
+        save_path = os.path.join(args.logdir, "models/checkpoint{}.pt".format(epoch + 1))
+        torch.save(model, save_path)
+        logging.info("saving to {}".format(save_path))
 
     if validation_loss < best_validation_loss:
         best_validation_epoch = epoch
         best_validation_loss = validation_loss
-        torch.save(model, args.model_dir + "/checkpoint_best.pt")
 
-    print(
+        save_path = os.path.join(args.logdir, "models/checkpoint_best.pt")
+        torch.save(model, save_path)
+        logging.info("best acc, saving to {}".format(save_path))
+
+    logging.info(
         'Best validation at epoch {}: Average Log Likelihood in nats: {:.4f}'.
         format(best_validation_epoch, -best_validation_loss))
 
-    model.save_images(epoch, args.img_save_dir)
+    save_path = os.path.join(args.logdir, "images")
+    model.save_images(epoch, save_path)
 

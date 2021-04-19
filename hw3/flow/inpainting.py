@@ -45,7 +45,8 @@ def load_mnist(train=True, batch_size=1, num_workers=0):
         torchvision.transforms.Lambda(lambda x: rescale(x, 0.0001, 0.9999))
     ])
     return torch.utils.data.DataLoader(
-        torchvision.datasets.MNIST(root="./datasets", train=train, transform=mnist_transform),
+        #torchvision.datasets.MNIST(root="./datasets", train=train, transform=mnist_transform),
+        torchvision.datasets.MNIST(root="../data", train=train,transform=mnist_transform),
         batch_size=batch_size,
         pin_memory=True,
         drop_last=train
@@ -54,10 +55,12 @@ def load_mnist(train=True, batch_size=1, num_workers=0):
 train_loader = load_mnist(train=True, batch_size=bsz)
 
 # model = torch.load("models4/realnvp/checkpoint101.pt")
-model = torch.load("models/checkpoint_best.pt")
+# model = torch.load("models/checkpoint_best.pt")
 
-device = torch.device("cuda:0")
-model.to(device)
+#device = torch.device("cuda:0")
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+model = torch.load("models/checkpoint_best.pt", map_location=device)
+#model.to(device)
 model.eval()
 
 dirname = "inpainting_images/"

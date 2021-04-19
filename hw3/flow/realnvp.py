@@ -8,7 +8,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torchvision
 from torch.distributions.normal import Normal
-
+from resnet import *
 
 class BatchNormFlow(nn.Module):
     """ An implementation of a batch normalization layer from
@@ -74,58 +74,68 @@ class Shuffle(nn.Module):
 
     def __init__(self, num_inputs):
         super(Shuffle, self).__init__()
-        self.perm = np.random.permutation(num_inputs)
-        self.inv_perm = np.argsort(self.perm)
+        self.perm = torch.from_numpy(np.random.permutation(num_inputs))
+        self.inv_perm = torch.argsort(self.perm)
 
     def forward(self, inputs, mode='direct'):
+        bsz, n = inputs.shape
         if mode == 'direct':
-            #############################################
-            # TODO complete code here;  x - > z
-            # return z = f(x) and logdet, z has the same shape with x, logdet has the shape (batch size, 1)
-            #############################################
+            z = inputs.gather(dim=1, index=self.perm.repeat(bsz, 1).to(inputs.device))
+            return z, torch.zeros((bsz, 1), device=inputs.device)
         else:
-            #############################################
-            # TODO complete code here; z - > x
-            # return x = f^-1(z) and logdet, x has the same shape with z, logdet has the shape (batch size, 1)
-            #############################################
+            x = inputs.gather(dim=1, index=self.inv_perm.repeat(bsz, 1).to(inputs.device))
+            return x, torch.zeros((bsz, 1), device=inputs.device)
 
 class CouplingLayer(nn.Module):
     """ An implementation of a coupling layer
     from RealNVP (https://arxiv.org/abs/1605.08803).
     """
 
-    def __init__(self,
-                 num_inputs,
-                 num_hidden,
-                 mask,
-                 s_act=nn.Tanh(),
-                 t_act=nn.ReLU()):
+    def __init__(self, num_inputs, num_hidden, mask, s_act=nn.Tanh(), t_act=nn.ReLU()):
         super(CouplingLayer, self).__init__()
 
         self.num_inputs = num_inputs
         self.mask = mask
         
-        ############################################
-        # TODO define your scale_net and translate_net
-        self.scale_net = None
-        self.translate_net = None
-        ###############################################
+        self.scale_net = ResNet(s_act)
+        self.translate_net = ResNet(t_act)
+        
+        '''
+        n_hidden = 2
+
+        net = [nn.Linear(num_inputs, num_hidden)]
+        for _ in range(n_hidden):
+            net += [nn.Tanh(), nn.Linear(num_hidden, num_hidden), nn.BatchNorm1d(num_hidden)]
+        net += [nn.Tanh(), nn.Linear(num_hidden, num_inputs)]
+
+        s_net = net + [s_act]
+        t_net = net + [t_act]
+        
+        self.scale_net = nn.Sequential(*s_net)
+        self.translate_net = nn.Sequential(*t_net)
+        '''
 
     def forward(self, inputs, mode='direct'):
         mask = self.mask
-        
+
         masked_inputs = inputs * mask
+        masked_inputs_2d = masked_inputs.view(inputs.shape[0], 1, 28, -1)
+
+        scaled = self.scale_net(masked_inputs_2d)
+        transed = self.translate_net(masked_inputs_2d)
+
+        #scaled = self.scale_net(masked_inputs)
+        #transed = self.translate_net(masked_inputs)
+
+        log_det = ((1 - mask) * scaled).sum(dim=1, keepdim=True)
         
         if mode == 'direct':
-            #############################################
-            # TODO complete code here;  x - > z
-            # return z = f(x) and logdet, z has the same shape with x, logdet has the shape (batch size, 1)
-            ###########################################
+            outputs = masked_inputs + (1 - mask) * (inputs * torch.exp(scaled) + transed)
+
+            return outputs, log_det
         else:
-            #############################################
-            # TODO complete code here; z - > x
-            # return x = f^-1(z) and logdet, x has the same shape with z, logdet has the shape (batch size, 1)
-            ###########################################
+            outputs = masked_inputs + (1 - mask) * (inputs - transed) * torch.exp(-scaled)
+            return outputs, -log_det
 
 class FlowSequential(nn.Sequential):
     """ A sequential container for flows.
@@ -179,11 +189,8 @@ class FlowSequential(nn.Sequential):
         return inputs, logdets
 
     def log_probs(self, inputs, pre_process=True):
-        u, log_jacob = self(inputs, pre_process=pre_process)
-        #######################################################
-        # TODO complete code here
-        # return a the log probability with shape (batch size, 1)
-        #######################################################
+        z, log_jacob = self(inputs, pre_process=pre_process)
+        return self.prior.log_prob(z).sum(dim=1, keepdim=True) + log_jacob
 
     def sample(self, num_samples=None, noise=None):
         if noise is None:

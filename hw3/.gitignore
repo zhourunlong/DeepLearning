@@ -2,8 +2,10 @@ data/
 .idea/
 .DS_Store
 Models*
+models*
 *.pth
 *.pt
+*.jpg
 
 # Latex
 .aux
