@@ -1,0 +1,15 @@
+\begin{thebibliography}{1}
+
+\bibitem{dinh2017density}
+{\sc Dinh, L., Sohl-Dickstein, J., and Bengio, S.}
+\newblock Density estimation using real nvp, 2017.
+
+\bibitem{du2020implicit}
+{\sc Du, Y., and Mordatch, I.}
+\newblock Implicit generation and generalization in energy-based models, 2020.
+
+\bibitem{kingma2014autoencoding}
+{\sc Kingma, D.~P., and Welling, M.}
+\newblock Auto-encoding variational bayes, 2014.
+
+\end{thebibliography}

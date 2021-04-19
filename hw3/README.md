@@ -27,24 +27,52 @@ python main.py [optional arguments]
 # Play around after you have trained a model.
 python main.py --play --load_dir /path/to/your/saved/model [optional arguments]
 ```
+For example:
+```
+python main.py --num_epochs=200 --gpuid=2
+python main.py --play --load_dir ebm_checkpoint_99.pth --gpuid=3
+```
+
 Flow:
 ```
 cd flow
-python train.py
+python train.py [optional arguments]
 # Try image inpainting.
 python inpainting.py
 ```
+For example:
+```
+python train.py --epochs=200 --gpuid=1
+```
+
 VAE:
 ```
 cd vae
+# Train MNIST classifier
+python mnist_classifier.py
+# Train VAE
 python vae.py [optional arguments]
 # Generate samples for further evaluation.
 python vae.py --eval --load_path /path/to/your/saved/model [optional arguments]
 ```
+For example:
+```
+python vae.py --num_epochs=100
+python vae.py --eval --load_path=best.pth
+```
+
 GAN:
 ```
 cd gan
+# Train MNIST classifier
+python mnist_classifier.py
+# Train GAN
 python gan.py [optional arguments]
 # Generate samples for further evaluation.
 python gan.py --eval --load_path /path/to/your/saved/model [optional arguments]
+```
+For example:
+```
+python gan.py --num_epochs=200
+python gan.py --eval --load_path=best.pth
 ```
