@@ -8,7 +8,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torchvision
 from torch.distributions.normal import Normal
-from resnet import *
+import torch.nn.init as init
 
 class BatchNormFlow(nn.Module):
     """ An implementation of a batch normalization layer from
@@ -78,13 +78,11 @@ class Shuffle(nn.Module):
         self.inv_perm = torch.argsort(self.perm)
 
     def forward(self, inputs, mode='direct'):
-        bsz, n = inputs.shape
+        bsz = inputs.shape[0]
         if mode == 'direct':
-            z = inputs.gather(dim=1, index=self.perm.repeat(bsz, 1).to(inputs.device))
-            return z, torch.zeros((bsz, 1), device=inputs.device)
+            return inputs[:, self.perm], torch.zeros((bsz, 1), device=inputs.device)
         else:
-            x = inputs.gather(dim=1, index=self.inv_perm.repeat(bsz, 1).to(inputs.device))
-            return x, torch.zeros((bsz, 1), device=inputs.device)
+            return inputs[:, self.inv_perm], torch.zeros((bsz, 1), device=inputs.device)
 
 class CouplingLayer(nn.Module):
     """ An implementation of a coupling layer
@@ -97,45 +95,45 @@ class CouplingLayer(nn.Module):
         self.num_inputs = num_inputs
         self.mask = mask
         
-        self.scale_net = ResNet(s_act)
-        self.translate_net = ResNet(t_act)
-        
-        '''
-        n_hidden = 2
+        n_hidden = 1
 
-        net = [nn.Linear(num_inputs, num_hidden)]
+        s_net = [nn.Linear(num_inputs, num_hidden)]
+        t_net = [nn.Linear(num_inputs, num_hidden)]
         for _ in range(n_hidden):
-            net += [nn.Tanh(), nn.Linear(num_hidden, num_hidden), nn.BatchNorm1d(num_hidden)]
-        net += [nn.Tanh(), nn.Linear(num_hidden, num_inputs)]
+            s_net += [s_act, nn.Linear(num_hidden, num_hidden)]
+            t_net += [t_act, nn.Linear(num_hidden, num_hidden)]
+        s_net += [s_act, nn.Linear(num_hidden, num_inputs), s_act]
+        t_net += [t_act, nn.Linear(num_hidden, num_inputs)]
 
-        s_net = net + [s_act]
-        t_net = net + [t_act]
-        
         self.scale_net = nn.Sequential(*s_net)
         self.translate_net = nn.Sequential(*t_net)
-        '''
 
     def forward(self, inputs, mode='direct'):
         mask = self.mask
+        imask = 1 - mask
 
         masked_inputs = inputs * mask
-        masked_inputs_2d = masked_inputs.view(inputs.shape[0], 1, 28, -1)
 
-        scaled = self.scale_net(masked_inputs_2d)
-        transed = self.translate_net(masked_inputs_2d)
+        scaled = self.scale_net(masked_inputs)
+        transed = self.translate_net(masked_inputs)
 
-        #scaled = self.scale_net(masked_inputs)
-        #transed = self.translate_net(masked_inputs)
-
-        log_det = ((1 - mask) * scaled).sum(dim=1, keepdim=True)
+        log_det = (imask * scaled).sum(dim=1, keepdim=True)
         
+        '''
         if mode == 'direct':
-            outputs = masked_inputs + (1 - mask) * (inputs * torch.exp(scaled) + transed)
-
+            outputs = masked_inputs + imask * (inputs * torch.exp(scaled) + transed)
             return outputs, log_det
         else:
-            outputs = masked_inputs + (1 - mask) * (inputs - transed) * torch.exp(-scaled)
+            outputs = masked_inputs + imask * (inputs - transed) * torch.exp(-scaled)
             return outputs, -log_det
+        '''
+
+        if mode == 'direct':
+            outputs = masked_inputs + imask * (inputs - transed) * torch.exp(-scaled)
+            return outputs, -log_det
+        else:
+            outputs = masked_inputs + imask * (inputs * torch.exp(scaled) + transed)
+            return outputs, log_det
 
 class FlowSequential(nn.Sequential):
     """ A sequential container for flows.

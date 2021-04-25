@@ -45,7 +45,7 @@ parser.add_argument(
 parser.add_argument(
     '--num-hidden',
     type=int,
-    default=100)
+    default=1000)
 parser.add_argument(
     '--seed', type=int, default=2018011309, help='random seed (default: 1)')
 
@@ -138,8 +138,7 @@ masks.extend([mask2, 1 - mask2])
 
 for i in range(args.num_blocks):
     modules += [
-        realnvp.CouplingLayer(
-            num_inputs, num_hidden, masks[i % len(masks)]),
+        realnvp.CouplingLayer(num_inputs, num_hidden, masks[i % len(masks)]),
         realnvp.BatchNormFlow(num_inputs, 0.1),
         realnvp.Shuffle(num_inputs)
     ]
@@ -170,6 +169,7 @@ def train(epoch):
         idx = batch_idx
 
         data = data.to(device)
+        
         optimizer.zero_grad()
         loss = - model.log_probs(data).mean()
         train_loss += loss.item()
@@ -227,6 +227,7 @@ for epoch in range(args.epochs):
             param_group['lr'] = args.lr
 
     train(epoch)
+
     validation_loss = validate(epoch, model, valid_loader)
     if epoch % 10 == 0:
         save_path = os.path.join(args.logdir, "models/checkpoint{}.pt".format(epoch + 1))
@@ -247,4 +248,3 @@ for epoch in range(args.epochs):
 
     save_path = os.path.join(args.logdir, "images")
     model.save_images(epoch, save_path)
-
