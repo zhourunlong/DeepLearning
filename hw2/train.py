@@ -80,7 +80,6 @@ def main(args):
     validset = CIFAR10_4x(root=os.path.join(base_dir, 'data'), split='valid', transform=transform_v)
     validloader = torch.utils.data.DataLoader(validset, batch_size=bsz, shuffle=False, num_workers=args.num_workers)
 
-<<<<<<< HEAD
     best_acc = 0
     if args.cont_train:
         net = torch.load(args.model_dir + "/cifar10_4x_best.pth").to(device)
@@ -88,9 +87,6 @@ def main(args):
         net.train()
     else:
         net = VGG16_ensemble_small(args.ensemble, args.seed).to(device)
-=======
-    net = VGG16_ensemble(args.ensemble, args.seed)
->>>>>>> 5ae054edf901663567d3db01728c03028d063e4e
     print("number of trained parameters: %d" % (sum([param.nelement() for param in net.parameters() if param.requires_grad])))
     print("number of total parameters: %d" % (sum([param.nelement() for param in net.parameters()])))
 
@@ -122,14 +118,9 @@ def main(args):
             if i % args.log_interval == args.log_interval - 1:
                 logging.info('[%d, %5d] loss: %.3f' % (epoch + 1, i + 1, running_loss / cnt))
         
-<<<<<<< HEAD
         acc, val_loss = evaluation(net, validloader, device)
         tr_acc, _ = evaluation(net, trainloader, device)
         logging.info('epoch %d, learning rate %f, average training loss %f, training accuracy %f, valid loss %f, valid accuracy %f %%' % (epoch + 1, optimizer.param_groups[0]['lr'], running_loss / cnt, tr_acc, val_loss, acc))
-=======
-        acc = evaluation(net, validloader, device)
-        logging.info('epoch %d, learning rate %f, average training loss %f, valid accuracy %f %%' % (epoch + 1, optimizer.param_groups[0]['lr'], running_loss / cnt, acc))
->>>>>>> 5ae054edf901663567d3db01728c03028d063e4e
         torch.save(net, os.path.join(args.model_dir, 'cifar10_4x_{}.pth'.format(epoch % 2)))
         logging.info('saving to {}/cifar10_4x_{}.pth'.format(args.model_dir, epoch % 2))
         if acc > best_acc:
@@ -142,7 +133,6 @@ def main(args):
 
 def get_args():
     parser = argparse.ArgumentParser()
-<<<<<<< HEAD
     parser.add_argument("--cont-train",action="store_true")
     parser.add_argument("--model-dir", type=str, default=None)
     parser.add_argument("--num-epoch", default=100, type=int)
@@ -161,25 +151,6 @@ def get_args():
         args.model_dir = "Models-{}".format(time.strftime("%Y%m%d-%H%M%S"))
         os.makedirs(args.model_dir, exist_ok=True)
     print("Experiment dir : {}".format(args.model_dir))
-=======
-    parser.add_argument("--model-dir", type=str,
-                        default=os.path.join(curr_dir, "models"))
-    parser.add_argument("--num-epoch", default=100, type=int)
-    parser.add_argument("--lr", default=1e-3, type=float)
-    parser.add_argument("--weight-decay", default=0.0, type=float)
-    parser.add_argument("--batch-size", default=200, type=int)
-    parser.add_argument("--seed", default=2018011309, type=int)
-    parser.add_argument("--log-interval", default=100, type=int)
-    parser.add_argument("--gpuid", default=0, type=int)
-    parser.add_argument("--num-workers", default=1, type=int)
-    parser.add_argument("--aug-prob", default=0.5, type=float)
-    parser.add_argument("--ensemble", default=3, type=int)
-    args = parser.parse_args()
-    set_seed(args.seed)
-    args.model_dir = 'Models-{}-{}'.format(args.model_dir, time.strftime("%Y%m%d-%H%M%S"))
-    os.makedirs(args.model_dir, exist_ok=True)
-    print('Experiment dir : {}'.format(args.model_dir))
->>>>>>> 5ae054edf901663567d3db01728c03028d063e4e
     return args
 
 if __name__ == "__main__":
