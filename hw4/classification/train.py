@@ -42,7 +42,6 @@ def get_args():
     parser.add_argument("--save-interval", default=10, type=int)
     parser.add_argument("--logdir", default=None)
     parser.add_argument("--num-heads", type=int, default=8)
-    parser.add_argument("--gpuid", type=int, default=0)
     parser.add_argument("--choice", type=int, default=4)
     parser.add_argument("--grad-acc-steps", type=int, default=1)
     parser.add_argument("--model-type", default="transformer", choices=["lstm", "transformer", "bert"])
@@ -66,10 +65,7 @@ def train(args):
     fh.setFormatter(logging.Formatter(log_format))
     logging.getLogger().addHandler(fh)
 
-    if args.gpuid >= 0:
-        device = "cuda:" + str(args.gpuid)
-    else:
-        device = "cpu"
+    device = "cuda"
     
     '''
     train_set = CLSDataset(device=device, model_type=args.model_type)

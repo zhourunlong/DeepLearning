@@ -66,6 +66,8 @@ class HiddenBert(nn.Module):
     def __init__(self, choice):
         super().__init__()
         self.encoder = BertModel.from_pretrained("bert-base-chinese", output_hidden_states=True)
+        for param in self.encoder.parameters():
+            param.requires_grad = False
         self.hidden_size = 768
         self.choice = choice
     
@@ -83,13 +85,13 @@ class HiddenBert(nn.Module):
             p = np.random.choice(begpos, size=k, replace=False)
             
             for i in p:
-                temporal = self.bert(inputs[:, i : i + 500], attention_mask[:, i : i + 500])[2][12]
+                temporal = self.encoder(inputs[:, i : i + 500], attention_mask[:, i : i + 500])[2][12]
 
                 outputs[:, : temporal.shape[1], :] += temporal
             
             return outputs
         
-        return self.bert(inputs, attention_mask)[2][12]
+        return self.encoder(inputs, attention_mask)[2][12]
 
 class Net(nn.Module):
 
